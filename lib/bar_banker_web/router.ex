@@ -17,7 +17,7 @@ defmodule BarBankerWeb.Router do
   scope "/", BarBankerWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", DashLive
   end
 
   # Other scopes may use custom stacks.

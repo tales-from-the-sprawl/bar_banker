@@ -41,9 +41,6 @@ defmodule BarBanker.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.8.1"},
-      {:phoenix_ecto, "~> 4.5"},
-      {:ecto_sql, "~> 3.13"},
-      {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
@@ -63,6 +60,15 @@ defmodule BarBanker.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
+      {:circuits_gpio, "~> 2.1"},
+      {
+        :tlv,
+        # 2025-11-14
+        git: "https://github.com/bitgamma/elixir_tlv.git",
+        ref: "0ffbba6b01bebc419d6687a7a540ee9baa720424"
+      },
+      {:nimble_csv, "~> 1.1"},
+      {:req, "~> 0.5.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]

@@ -333,7 +333,7 @@ defmodule BarBankerWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
+    <table class="mt-0 w-full">
       <thead>
         <tr>
           <th :for={col <- @col}>{col[:label]}</th>

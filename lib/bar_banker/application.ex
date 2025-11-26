@@ -9,12 +9,14 @@ defmodule BarBanker.Application do
   def start(_type, _args) do
     children = [
       BarBankerWeb.Telemetry,
-      BarBanker.Repo,
       {DNSCluster, query: Application.get_env(:bar_banker, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: BarBanker.PubSub},
       # Start a worker by calling: BarBanker.Worker.start_link(arg)
       # {BarBanker.Worker, arg},
       # Start to serve requests, typically the last entry
+      # BarBanker.Keypad,
+      # BarBanker.Nfc,
+      BarBanker.Cart,
       BarBankerWeb.Endpoint
     ]
 

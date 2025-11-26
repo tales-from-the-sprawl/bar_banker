@@ -1,0 +1,104 @@
+<Layouts.app flash={@flash}>
+  <div class="grid grid-cols-2 h-full">
+    <div class="border-r overflow-scroll">
+      <div :if={@order} class="border-2 mb-2 px-1">
+        <.async_result :let={message} assign={@order}>
+          <:loading>Processing order</:loading>
+          <:failed :let={failure}>Order failed: {failure}</:failed>
+          {message}
+        </.async_result>
+      </div>
+      <%= case @view do %>
+        <% :menu -> %>
+          <.table id="menu" rows={@sub_menu || @menu}>
+            <:col :let={item} label="Key">
+              <%= if item["children"] != nil do %>
+                <kbd class="kbd" phx-window-keydown="select_category" phx-key={item["key"]}>
+                  {item["key"]}
+                </kbd>
+              <% else %>
+                <kbd class="kbd" phx-window-keydown="add_cart" phx-key={item["key"]}>
+                  {item["key"]}
+                </kbd>
+              <% end %>
+            </:col>
+            <:col :let={item} label="Name">{item["label"]}</:col>
+            <:col :let={item} label="Price">¥{item["price"]}</:col>
+          </.table>
+          <div class="flex gap-4 items-center">
+            <span>
+              <kbd class="kbd mr-1" phx-window-keydown="unselect_category" phx-key="Escape">
+                ESC
+              </kbd>
+              Back
+            </span>
+            <span>
+              <kbd class="kbd mr-1" phx-window-keydown="checkout" phx-key="Enter">Enter</kbd>
+              Checkout
+            </span>
+          </div>
+        <% :cart -> %>
+          <.table id="cart" rows={@cart}>
+            <:col :let={item} label="Name">{item["label"]}</:col>
+            <:col :let={item} label="Price">¥{item["price"]}</:col>
+            <:col :let={item} label="Count">x{item["count"]}</:col>
+          </.table>
+          <div class="">
+            <div class="border-2 mb-2 px-1">
+              <span>Order total: </span>
+              <span>¥{@total}</span>
+            </div>
+            <div class="flex gap-4 items-center">
+              <span>
+                <kbd class="kbd mr-1" phx-window-keydown="cancel_checkout" phx-key="Escape">
+                  ESC
+                </kbd>
+                Back
+              </span>
+              <span>
+                <kbd class="kbd mr-1" phx-window-keydown="clear_cart" phx-key="c">C</kbd> Clear
+              </span>
+              <span>
+                <kbd class="kbd mr-1" phx-window-keydown="order" phx-key="Enter">Enter</kbd> Order
+              </span>
+            </div>
+          </div>
+      <% end %>
+    </div>
+    <div>
+      <%= if @cart == [] do %>
+        <div class="grid place-content-center">
+          <img
+            src="/images/Trinity_Tall.png"
+            alt="Trinity Taskbar"
+            class="w-[384px] border-none block"
+          />
+        </div>
+      <% else %>
+        <div class="px-3 py-4">
+          <img
+            src="/images/Trinity_Rect.png"
+            alt="Trinity Taskbar"
+            class="h-24 border-none block"
+          />
+          <div class="border-2 mb-2 px-1">
+            <span>Order total: </span>
+            <span>¥{@total}</span>
+          </div>
+          <.table id="user_cart" rows={@cart}>
+            <:col :let={item} label="Name">{item["label"]}</:col>
+            <:col :let={item} label="Price">¥{item["price"]}</:col>
+            <:col :let={item} label="Count">x{item["count"]}</:col>
+          </.table>
+        </div>
+      <% end %>
+      <div :if={@order} class="border-2 mb-2 px-1">
+        <.async_result :let={message} assign={@order}>
+          <:loading>Please insert card</:loading>
+          <:failed :let={failure}>Order failed: {failure}</:failed>
+          {message}
+        </.async_result>
+      </div>
+    </div>
+  </div>
+</Layouts.app>

@@ -35,3 +35,6 @@ bar_banker-*.tar
 npm-debug.log
 /assets/node_modules/
 
+.DS_Store
+
+/priv/data
