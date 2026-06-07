@@ -24,7 +24,7 @@ config :nerves, source_date_epoch: "1780841365"
 
 config :mix_tasks_upload_hotswap,
   app_name: :bar_banker,
-  nodes: [:"bar_banker@nerves.local"],
+  nodes: [:"bar_banker@bar_banker.local"],
   cookie: :nerves_is_awesome
 
 import_config "phoenix/config.exs"
