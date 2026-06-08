@@ -7,6 +7,10 @@
 # General application configuration
 import Config
 
+config :bar_banker,
+  base_url: "https://talesbot.databladet.se",
+  auth: {:basic, "tales:supersecret"}
+
 # Enable the Nerves integration with Mix
 Application.start(:nerves_bootstrap)
 
