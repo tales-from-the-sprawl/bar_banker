@@ -25,8 +25,6 @@ defmodule BarBanker.Application do
         # Children that only run on the host
         # Starts a worker by calling: BarBanker.Worker.start_link(arg)
         # {BarBanker.Worker, arg},
-        LibNFC.Mock,
-        {BarBanker.NFC, [client_state: {nil, :mock}]}
       ]
     end
   else
@@ -42,7 +40,7 @@ defmodule BarBanker.Application do
         # {BarBanker.Worker, arg},
         {BarBanker.UdevdServer, []},
         {BarBanker.UiSupervisor, []},
-        {BarBanker.NFC, [client_state: {nil, :real}]},
+        {BarBanker.NFC, []},
         {BarBanker.Keypad, []},
         {Task, &start_node/0}
       ]

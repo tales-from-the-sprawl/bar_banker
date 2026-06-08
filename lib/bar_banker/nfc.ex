@@ -14,26 +14,22 @@ defmodule BarBanker.NFC do
   end
 
   @impl LibNFC.Presence
-  def open_device({_uid, dev}) do
-    if dev == :mock do
-      {:ok, :mock}
-    else
-      LibNFC.open(@connstring)
-    end
+  def open_device(_client_state) do
+    LibNFC.open(@connstring)
   end
 
   @impl LibNFC.Presence
-  def handle_target_in(target, {_, dev}) do
+  def handle_target_in(target, _) do
     uid = uid_hex(target["uid"])
     Logger.info("nfc: tag in: #{uid}")
     broadcast_nfc({:nfc, :in, uid})
-    {:ok, {uid, dev}}
+    {:ok, uid}
   end
 
   @impl LibNFC.Presence
-  def handle_target_out({uid, dev}) do
+  def handle_target_out(uid) do
     Logger.info("nfc: tag out: #{uid}")
     broadcast_nfc({:nfc, :out, uid})
-    {:ok, {nil, dev}}
+    {:ok, nil}
   end
 end
