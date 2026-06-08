@@ -1,5 +1,4 @@
 defmodule BarBanker.Keypad do
-  require Logger
   alias BarBanker.Utils
   alias Circuits.GPIO
   use GenServer
@@ -8,6 +7,14 @@ defmodule BarBanker.Keypad do
 
   def start_link([]) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def subscribe_keypad() do
+    Phoenix.PubSub.subscribe(BarBanker.PubSub, "keypad")
+  end
+
+  defp broadcast_keypad(message) do
+    Phoenix.PubSub.broadcast(BarBanker.PubSub, "keypad", message)
   end
 
   @keymap {
@@ -57,10 +64,10 @@ defmodule BarBanker.Keypad do
     |> Utils.dedupe_events()
     |> Enum.each(fn
       {:pressed, key} ->
-        Logger.debug("Pressed #{key}")
+        broadcast_keypad({:keypad, :pressed, key})
 
       {:released, key} ->
-        Logger.debug("Released #{key}")
+        broadcast_keypad({:keypad, :release, key})
     end)
 
     {:noreply, %{state | buffer: [], timer: nil}}
