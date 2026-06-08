@@ -32,8 +32,8 @@ defmodule NDEF do
   end
 
   # Parse NDEF Well-known Text Record payload
-  defp parse_text_payload(<<lang_len, rest::binary>>) do
-    <<lang::binary-size(lang_len), text::binary>> = rest
+  defp parse_text_payload(<<lang_len::8, rest::binary>>) do
+    <<lang::binary-size(^lang_len), text::binary>> = rest
 
     %{
       tnf: 0x01,
