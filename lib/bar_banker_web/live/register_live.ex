@@ -1,4 +1,4 @@
-defmodule BarBankerWeb.DashLive do
+defmodule BarBankerWeb.RegisterLive do
   require Logger
   alias Phoenix.LiveView.AsyncResult
   alias BarBanker.Sin
@@ -128,14 +128,12 @@ defmodule BarBankerWeb.DashLive do
       |> start_async(
         :order,
         fn ->
-          # handle =
-          #  Nfc.read()
-          #  |> then(fn %{"data" => records} -> records end)
-          #  |> Enum.find(&match?(%{type: "T"}, &1))
-          #  |> then(fn %{text: code} -> code end)
-          #  |> Sin.map_sincode()
-
-          handle = "steve"
+          handle =
+            Nfc.read()
+            |> then(fn %{"data" => records} -> records end)
+            |> Enum.find(&match?(%{type: "T"}, &1))
+            |> then(fn %{text: code} -> code end)
+            |> Sin.map_sincode()
 
           if handle == nil do
             {:error, "Invalid card"}
