@@ -44,15 +44,13 @@ defmodule NDEF do
     }
   end
 
-  @doc """
-  Field	Size	  Description
-  MB	  1 bit	  Message Begin
-  ME	  1 bit	  Message End
-  CF	  1 bit	  Chunk Flag
-  SR	  1 bit	  Short Record
-  IL	  1 bit	  ID Length present
-  TNF	  3 bits	Type Name Format
-  """
+  # Field	Size	  Description
+  # MB	  1 bit	  Message Begin
+  # ME	  1 bit	  Message End
+  # CF	  1 bit	  Chunk Flag
+  # SR	  1 bit	  Short Record
+  # IL	  1 bit	  ID Length present
+  # TNF	  3 bits	Type Name Format
   defp parse_flags(<<mb::1, me::1, cf::1, sr::1, il::1, tnf::3>>) do
     {mb, me, cf, sr, il, tnf}
   end
