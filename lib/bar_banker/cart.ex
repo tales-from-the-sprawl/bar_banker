@@ -1,75 +1,39 @@
 defmodule BarBanker.Cart do
-  use GenServer
+  use Agent
 
   def start_link([]) do
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+    Agent.start_link(fn -> %{} end, name: __MODULE__)
   end
 
-  def add(item) do
-    GenServer.call(__MODULE__, {:add, item})
+  def add(path, item) do
+    Agent.update(__MODULE__, fn map ->
+      Map.update(map, path, {1, item}, fn {n, i} -> {n + 1, i} end)
+    end)
   end
 
-  def remove(item) do
-    GenServer.call(__MODULE__, {:remove, item})
+  def remove(path) do
+    Agent.update(__MODULE__, fn map ->
+      Map.get_and_update(map, path, fn
+        {1, _} -> :pop
+        {n, i} -> {{n, i}, {n - 1, i}}
+      end)
+      |> then(fn {_, s} -> s end)
+    end)
   end
 
   def get() do
-    GenServer.call(__MODULE__, :get)
-  end
-
-  def total() do
-    GenServer.call(__MODULE__, :total)
+    Agent.get(__MODULE__, & &1)
+    |> Map.values()
+    |> Enum.map(fn {n, i} -> Map.put(i, "count", n) end)
   end
 
   def clear() do
-    GenServer.call(__MODULE__, :clear)
+    Agent.update(__MODULE__, fn _ -> %{} end)
   end
 
-  @impl GenServer
-  def init(_init_arg) do
-    {:ok, %{}}
+  def total(cart) do
+    cart
+    |> Enum.map(&(&1["price"] * &1["count"]))
+    |> Enum.sum()
   end
-
-  @impl GenServer
-  def handle_call({:add, %{"code" => code} = item}, _from, cart) do
-    item = Map.put(item, "count", 1)
-    cart = Map.update(cart, code, item, &inc_count/1)
-    {:reply, :ok, cart}
-  end
-
-  @impl GenServer
-  def handle_call({:remove, %{"code" => code}}, _from, cart) do
-    cart =
-      Map.update(cart, code, nil, &dec_count/1)
-      |> Map.filter(fn {_, val} -> val != nil end)
-
-    {:reply, :ok, cart}
-  end
-
-  @impl GenServer
-  def handle_call(:get, _from, cart) do
-    data = cart |> Map.values()
-    {:reply, data, cart}
-  end
-
-  @impl GenServer
-  def handle_call(:total, _from, cart) do
-    data =
-      cart
-      |> Map.values()
-      |> Enum.map(&(&1["price"] * &1["count"]))
-      |> Enum.sum()
-
-    {:reply, data, cart}
-  end
-
-  @impl GenServer
-  def handle_call(:clear, _from, _cart) do
-    {:reply, :ok, %{}}
-  end
-
-  defp inc_count(%{"count" => count} = item), do: %{item | "count" => count + 1}
-
-  defp dec_count(%{"count" => 1}), do: nil
-  defp dec_count(%{"count" => count} = item), do: %{item | "count" => count - 1}
 end
