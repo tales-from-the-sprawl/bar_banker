@@ -1,4 +1,4 @@
-defmodule BarBanker.Nfc do
+defmodule BarBanker.NfcOld do
   @moduledoc """
   Reads a PN532 chip over I2C.
   Spawns a python process to do the reading.
