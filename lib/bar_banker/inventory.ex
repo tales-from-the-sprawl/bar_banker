@@ -6,23 +6,9 @@ defmodule BarBanker.Inventory do
     |> JSON.decode!()
   end
 
-  def find(menu, category) do
-    menu
-    |> Enum.find(&(&1["code"] == category))
-    |> then(fn %{"children" => c} -> c end)
-  end
+  def item(inventory, []), do: inventory
+  def item(inventory, path), do: get_in(inventory, Enum.intersperse(path, "children"))
 
-  def find(menu, category, item) do
-    menu
-    |> find(category)
-    |> Enum.find(&(&1["code"] == item))
-  end
-
-  def get_shop_items_debug() do
-    [
-      %{key: "Q", code: "KeyQ", label: "Noodles", price: 100},
-      %{key: "W", code: "KeyW", label: "Food", price: 150},
-      %{key: "E", code: "KeyE", label: "Drink", price: 50}
-    ]
-  end
+  def items(inventory, []), do: inventory
+  def items(inventory, path), do: get_in(item(inventory, path), ["children"])
 end
