@@ -1,5 +1,8 @@
 import Config
 
+config :myelin,
+  trusted_origins: ["http://localhost:4000"]
+
 # Use Ringlogger as the logger backend and remove :console.
 # See https://ring-logger.hexdocs.pm/readme.html for more information on
 # configuring ring_logger.
@@ -10,7 +13,9 @@ config :logger, backends: [RingLogger]
 # library documentation for more control in ordering how OTP
 # applications are started and handling failures.
 
-config :shoehorn, init: [:nerves_runtime, :nerves_pack]
+config :shoehorn,
+  init: [:nerves_runtime, :nerves_pack],
+  app: Mix.Project.config()[:app]
 
 # Enable the system startup guard to check that all OTP applications
 # started. If they didn't and you're on a Nerves system that supports

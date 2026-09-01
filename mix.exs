@@ -65,14 +65,15 @@ defmodule BarBanker.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
 
       # Dependencies for all targets
-      {:nerves, "~> 1.13", runtime: false},
+      {:nerves, "~> 1.15", runtime: false},
       {:shoehorn, "~> 0.9.1"},
       {:ring_logger, "~> 0.11.0"},
-      {:toolshed, "~> 0.4.0"},
+      {:toolshed, "~> 0.5"},
       {:mix_tasks_upload_hotswap, "~> 0.1.0", only: :dev},
 
       # Kiosk deps
       {:muontrap, "~> 1.8"},
+      {:myelin, "~> 0.1.1"},
       {:dbus, "~> 0.8"},
 
       # App deps
@@ -92,18 +93,17 @@ defmodule BarBanker.MixProject do
 
       # Allow Nerves.Runtime on host to support development, testing and CI.
       # See config/host.exs for usage.
-      {:nerves_runtime, "~> 0.13.12"},
+      {:nerves_runtime, "~> 0.13.2"},
 
       # Dependencies for all targets except :host
-      {:nerves_pack, "~> 0.7.1", targets: @all_targets},
-      {:nerves_ssh, "~> 1.3", targets: @all_targets},
+      {:nerves_pack, "~> 0.7", targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version
       # bumps to Nerves systems. Since these include Linux kernel and Erlang
       # version updates, please review their release notes in case
       # changes to your application are needed.
-      {:kiosk_system_rpi4, "~> 2.0", runtime: false, targets: :rpi4}
+      {:kiosk_system_rpi4, "~> 2.1", runtime: false, targets: :rpi4}
     ] ++ phoenix_deps()
   end
 
