@@ -29,6 +29,7 @@ defmodule BarBanker.Cart do
 
   def clear() do
     Agent.update(__MODULE__, fn _ -> %{} end)
+    []
   end
 
   def total(cart) do

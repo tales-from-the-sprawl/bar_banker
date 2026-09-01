@@ -3,7 +3,6 @@ defmodule NDEF do
   Parses a single short NDEF record.
   Returns %{tnf:, type:, payload:, language:, text:}
   """
-  @spec parse_short_record(binary()) :: %{tnf: integer(), type: binary(), payload: binary()}
   def parse_short_record(<<
         # 1 byte
         flags,

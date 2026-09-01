@@ -12,7 +12,7 @@ defmodule BarBanker.MixProject do
       app: @app,
       version: @version,
       source_url: @source_url,
-      elixir: "~> 1.20",
+      elixir: "~> 1.19",
       archives: [nerves_bootstrap: "~> 1.15"],
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -96,6 +96,7 @@ defmodule BarBanker.MixProject do
 
       # Dependencies for all targets except :host
       {:nerves_pack, "~> 0.7.1", targets: @all_targets},
+      {:nerves_ssh, "~> 1.3", targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version

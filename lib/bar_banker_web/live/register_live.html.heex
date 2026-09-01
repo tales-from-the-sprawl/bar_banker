@@ -11,8 +11,12 @@
       <%= case @view do %>
         <% :menu -> %>
           <.table id="menu" rows={@items}>
-            <:col :let={{_id, item}} label="Key">
-              <kbd class="kbd" phx-window-keydown={menu_action(item)} phx-key={item["key"]}>
+            <:col :let={{id, item}} label="Key">
+              <kbd
+                class="kbd"
+                phx-window-keydown={menu_action(id, item, @path)}
+                phx-key={item["key"]}
+              >
                 {item["key"]}
               </kbd>
             </:col>

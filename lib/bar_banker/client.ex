@@ -10,22 +10,23 @@ defmodule BarBanker.Client do
   end
 
   def balance(handle) when is_binary(handle) do
-    new()
-    |> Req.get(url: "/api/balance/:handle", path_params: [handle: handle]).body
+    Req.get(new(), url: "/api/balance/:handle", path_params: [handle: handle]).body
   end
 
   def transfer(sender, receiver, amount, opts \\ []) do
     allow_partial = Keyword.get(opts, :partial, false)
 
-    new()
-    |> Req.post(
-      url: "/api/transfer",
-      json: %{
-        sender: sender,
-        receiver: receiver,
-        amount: amount,
-        allow_partial: allow_partial
-      }
-    ).body
+    case Req.post(new(),
+           url: "/api/transfer",
+           json: %{
+             sender: sender,
+             receiver: receiver,
+             amount: amount,
+             allow_partial: allow_partial
+           }
+         ).body do
+      %{"status" => "ok", "message" => message, "amount" => amount} -> {:ok, {message, amount}}
+      %{"status" => "error", "message" => message} -> {:error, message}
+    end
   end
 end

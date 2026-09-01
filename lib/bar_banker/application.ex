@@ -38,8 +38,8 @@ defmodule BarBanker.Application do
         # Children for all targets except host
         # Starts a worker by calling: BarBanker.Worker.start_link(arg)
         # {BarBanker.Worker, arg},
-        {BarBanker.UdevdServer, []},
-        {BarBanker.UiSupervisor, []},
+        {BarBanker.Kiosk.Udevd, []},
+        {BarBanker.Kiosk.Supervisor, []},
         {BarBanker.NFC, []},
         {BarBanker.Keypad, []},
         {Task, &start_node/0}

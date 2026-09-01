@@ -1,13 +1,17 @@
 defmodule BarBankerWeb.RegisterLive do
+  alias BarBanker.Client
   use BarBankerWeb, :live_view
-  require Logger
-  alias Phoenix.LiveView.AsyncResult
-  alias BarBanker.Sin
-  alias BarBanker.Nfc
+  alias BarBanker.NFC
   alias BarBanker.Cart
   alias BarBanker.Inventory
 
+  @shop_handle "trinity_taskbar"
+
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      NFC.subscribe_nfc()
+    end
+
     inventory = Inventory.get_shop_items()
 
     socket =
@@ -15,8 +19,8 @@ defmodule BarBankerWeb.RegisterLive do
       |> assign(:view, :menu)
       |> assign(:inventory, inventory)
       |> assign_cart(Cart.get())
-      |> assign(:message, nil)
-      |> assign(:order, nil)
+      |> assign(:waiting_for_card, false)
+      |> assign(:checkout_in_progress, false)
 
     {:ok, socket}
   end
@@ -90,136 +94,112 @@ defmodule BarBankerWeb.RegisterLive do
   end
 
   def handle_event("clear_cart", _params, socket) do
-    Cart.clear()
-
     socket =
       socket
-      |> assign_cart([])
-      |> update(:order, &clear_order/1)
+      |> assign_cart(Cart.clear())
+
+    {:noreply, socket}
+  end
+
+  def handle_event("to_cart", _params, socket) do
+    socket =
+      socket
+      |> assign_view(:cart)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("to_menu", _params, socket) do
+    socket =
+      socket
+      |> assign_view(:menu)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("checkout", _params, socket) when is_nil(socket.assigns.current_tag) do
+    socket =
+      socket
+      |> assign(:waiting_for_card, true)
 
     {:noreply, socket}
   end
 
   def handle_event("checkout", _params, socket) do
-    socket =
-      socket
-      |> assign(:view, :cart)
-      |> push_patch(to: ~p"/")
-
-    {:noreply, socket}
-  end
-
-  def handle_event("cancel_checkout", _params, socket) do
-    socket =
-      socket
-      |> assign(:view, :menu)
-      |> push_patch(to: ~p"/")
-
-    {:noreply, socket}
-  end
-
-  def handle_event("order", _params, socket) do
+    current_tag = socket.assigns.current_tag
     total = socket.assigns.total
 
     socket =
       socket
-      |> push_patch(to: ~p"/")
-      |> assign(:order, AsyncResult.loading())
-      |> start_async(
-        :order,
-        fn ->
-          handle =
-            Nfc.read()
-            |> then(fn %{"data" => records} -> records end)
-            |> Enum.find(&match?(%{type: "T"}, &1))
-            |> then(fn %{text: code} -> code end)
-            |> Sin.map_sincode()
-
-          if handle == nil do
-            {:error, "Invalid card"}
-          else
-            Logger.debug("Transfering #{total} from #{handle}")
-
-            resp =
-              Req.post!("https://talesbot.databladet.se/api/transfer",
-                auth: {:basic, "tales:IP*OHtkgR5CTi7Gcr6Bao#v0!AGrDKDj"},
-                json: %{"sender" => handle, "receiver" => "trinity_taskbar", "amount" => total}
-              ).body
-
-            case resp do
-              %{"status" => "ok", "message" => message, "amount" => transfered} ->
-                Logger.debug("Transfering #{total} from #{handle}")
-                {:ok, %{order: {message, transfered}}}
-
-              %{"status" => "error", "msg" => reason} ->
-                Logger.error("Failed to transfer #{total} from #{handle}, reason: #{reason}")
-                {:error, reason}
-            end
-          end
-        end
-      )
+      |> start_checkout(current_tag, @shop_handle, total)
 
     {:noreply, socket}
   end
 
-  def handle_async(:order, {:ok, {:ok, %{order: {message, _}}}}, socket) do
-    %{order: order} = socket.assigns
-
+  def handle_async(:checkout, {:ok, {message, _amount}}, socket) do
     Cart.clear()
 
     socket =
       socket
-      |> assign(:order, AsyncResult.ok(order, message))
-      |> assign(:view, :menu)
+      |> assign(:checkout_in_progress, false)
+      |> assign_view(:menu)
       |> assign_cart([])
-
-    Process.send_after(self(), :clear_message, 10000)
-
-    {:noreply, socket}
-  end
-
-  def handle_async(:order, {:ok, {:error, reason}}, socket) do
-    %{order: order} = socket.assigns
-
-    socket =
-      socket
-      |> assign(:order, AsyncResult.failed(order, reason))
-
-    Process.send_after(self(), :clear_message, 10000)
+      |> put_flash(:info, message)
 
     {:noreply, socket}
   end
 
-  def handle_async(:order, {:exit, reason}, socket) do
-    %{order: order} = socket.assigns
-
+  def handle_async(:checkout, {:exit, reason}, socket) do
     socket =
       socket
-      |> assign(:order, AsyncResult.failed(order, {:exit, reason}))
-
-    {:noreply, assign(socket, :order, AsyncResult.failed(order, {:exit, reason}))}
-  end
-
-  def handle_info(:clear_message, socket) do
-    socket =
-      socket
-      |> update(:order, &clear_order/1)
+      |> assign(:checkout_in_progress, false)
+      |> put_flash(:error, reason)
 
     {:noreply, socket}
   end
 
-  defp clear_order(nil), do: nil
+  def handle_info({:nfc, :in, uid}, %{assigns: %{waiting_for_card: true}} = socket) do
+    total = socket.assigns.total
 
-  defp clear_order(%AsyncResult{} = v) do
-    if v.ok? do
-      nil
-    else
-      v
-    end
+    socket =
+      socket
+      |> start_checkout(uid, @shop_handle, total)
+      |> assign(:current_tag, uid)
+
+    {:noreply, socket}
   end
 
-  defp menu_action(%{"children" => _}), do: "select_category"
-  defp menu_action(_), do: "add_cart"
+  def handle_info({:nfc, :in, uid}, socket) do
+    socket =
+      socket
+      |> assign(:current_tag, uid)
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:nfc, :out, _uid}, socket) do
+    socket =
+      socket
+      |> assign(:current_tag, nil)
+
+    {:noreply, socket}
+  end
+
+  defp start_checkout(socket, sender, receiver, total) do
+    socket
+    |> assign(:checkout_in_progress, true)
+    |> start_async(:checkout, fn ->
+      case Client.transfer(sender, receiver, total) do
+        {:ok, res} -> res
+        {:error, reason} -> raise reason
+      end
+    end)
+  end
+
+  defp menu_action(id, %{"children" => _}, path),
+    do: JS.patch(~p"/#{Path.join(path ++ [id])}")
+
+  defp menu_action(_, _, _), do: "add_cart"
 
   defp assign_cart(socket, cart) do
     total = Cart.total(cart)
@@ -227,6 +207,12 @@ defmodule BarBankerWeb.RegisterLive do
     socket
     |> assign(:cart, cart)
     |> assign(:total, total)
+  end
+
+  defp assign_view(socket, view) do
+    socket
+    |> assign(:view, view)
+    |> push_patch(to: ~p"/")
   end
 
   defp fmt_money(amount) when is_integer(amount), do: "¥#{amount}"
