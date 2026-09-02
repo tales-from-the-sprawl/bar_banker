@@ -1,13 +1,8 @@
 <Layouts.app flash={@flash}>
   <div class="grid grid-cols-2 h-full">
     <div class="border-r overflow-scroll">
-      <div :if={@order} class="border-2 mb-2 px-1">
-        <.async_result :let={message} assign={@order}>
-          <:loading>Processing order</:loading>
-          <:failed :let={failure}>Order failed: {failure}</:failed>
-          {message}
-        </.async_result>
-      </div>
+      <div :if={@waiting_for_card}>Please insert card</div>
+      <div :if={@checkout_in_progress}>Order in progress...</div>
       <%= case @view do %>
         <% :menu -> %>
           <.table id="menu" rows={@items}>
@@ -90,13 +85,9 @@
           </.table>
         </div>
       <% end %>
-      <div :if={@order} class="border-2 mb-2 px-1">
-        <.async_result :let={message} assign={@order}>
-          <:loading>Please insert card</:loading>
-          <:failed :let={failure}>Order failed: {failure}</:failed>
-          {message}
-        </.async_result>
-      </div>
+
+      <div :if={@waiting_for_card}>Please insert card</div>
+      <div :if={@checkout_in_progress}>Order in progress...</div>
     </div>
   </div>
 </Layouts.app>

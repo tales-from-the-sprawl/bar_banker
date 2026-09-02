@@ -165,6 +165,7 @@ defmodule BarBankerWeb.RegisterLive do
       socket
       |> start_checkout(uid, @shop_handle, total)
       |> assign(:current_tag, uid)
+      |> assign(:waiting_for_card, false)
 
     {:noreply, socket}
   end

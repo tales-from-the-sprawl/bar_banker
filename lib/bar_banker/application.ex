@@ -40,8 +40,8 @@ defmodule BarBanker.Application do
         # {BarBanker.Worker, arg},
         {BarBanker.Kiosk.Udevd, []},
         {BarBanker.Kiosk.Supervisor, []},
-        {BarBanker.NFC, []},
-        {BarBanker.Keypad, []},
+        # {BarBanker.NFC, []},
+        # {BarBanker.Keypad, []},
         {Task, &start_node/0}
       ]
     end

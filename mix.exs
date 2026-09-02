@@ -66,10 +66,10 @@ defmodule BarBanker.MixProject do
 
       # Dependencies for all targets
       {:nerves, "~> 1.15", runtime: false},
-      {:shoehorn, "~> 0.9.1"},
-      {:ring_logger, "~> 0.11.0"},
+      {:shoehorn, "~> 0.9.3"},
+      {:ring_logger, "~> 0.11.6"},
       {:toolshed, "~> 0.5"},
-      {:mix_tasks_upload_hotswap, "~> 0.1.0", only: :dev},
+      {:mix_tasks_upload_hotswap, "~> 0.1.2", only: :dev},
 
       # Kiosk deps
       {:muontrap, "~> 1.8"},
@@ -77,15 +77,15 @@ defmodule BarBanker.MixProject do
       {:dbus, "~> 0.8"},
 
       # App deps
-      {:req, "~> 0.5"},
-      {:circuits_gpio, "~> 2.1"},
+      {:req, "~> 0.7"},
+      {:circuits_gpio, "~> 2.3"},
       {
         :tlv,
         # 2025-11-14
         git: "https://github.com/bitgamma/elixir_tlv.git",
         ref: "0ffbba6b01bebc419d6687a7a540ee9baa720424"
       },
-      {:nimble_csv, "~> 1.1"},
+      {:nimble_csv, "~> 1.3"},
 
       # PN532 NFC reader over I2C. Fork that statically compiles a vendored
       # libnfc (pn532_i2c driver) so it cross-compiles for Nerves.
@@ -93,7 +93,7 @@ defmodule BarBanker.MixProject do
 
       # Allow Nerves.Runtime on host to support development, testing and CI.
       # See config/host.exs for usage.
-      {:nerves_runtime, "~> 0.13.2"},
+      {:nerves_runtime, "~> 0.13.13"},
 
       # Dependencies for all targets except :host
       {:nerves_pack, "~> 0.7", targets: @all_targets},
@@ -129,12 +129,12 @@ defmodule BarBanker.MixProject do
 
   defp phoenix_deps do
     [
-      {:phoenix, "~> 1.8.5"},
-      {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.6", only: :dev},
-      {:phoenix_live_view, "~> 1.2.0"},
+      {:phoenix, "~> 1.8"},
+      {:phoenix_html, "~> 4.3"},
+      {:phoenix_live_reload, "~> 1.7", only: :dev},
+      {:phoenix_live_view, "~> 1.2"},
       {:lazy_html, ">= 0.1.0", only: :test},
-      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:phoenix_live_dashboard, "~> 0.9.1"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:heroicons,
@@ -146,8 +146,8 @@ defmodule BarBanker.MixProject do
        depth: 1},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:dns_cluster, "~> 0.3.0"},
+      {:bandit, "~> 1.12"}
     ]
   end
 
