@@ -65,22 +65,15 @@ defmodule BarBanker.Kiosk.Supervisor do
         id: :weston
       ),
       Supervisor.child_spec(
-        {MuonTrap.Daemon,
+        {BarBanker.Kiosk.Browsers,
          [
-           "cog",
-           ["--platform=wl", "http://localhost:4000/"] ++ Myelin.browser_args(),
-           [
-             env: cog_env,
-             stderr_to_stdout: true,
-             log_output: :info,
-             log_prefix: "cog: ",
-             wait_for: fn ->
-               wait_for_path(@dbus_socket_path)
-               wait_for_path(wayland_socket)
-             end
-           ]
+           env: cog_env,
+           wait_for: fn ->
+             wait_for_path(@dbus_socket_path)
+             wait_for_path(wayland_socket)
+           end
          ]},
-        id: :cog
+        id: :browsers
       )
     ]
 

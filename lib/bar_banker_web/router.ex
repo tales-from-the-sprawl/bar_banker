@@ -17,7 +17,11 @@ defmodule BarBankerWeb.Router do
   scope "/", BarBankerWeb do
     pipe_through :browser
 
-    live "/*path", RegisterLive
+    # One screen per physical output — see BarBanker.Kiosk.Browsers, which
+    # points one cog window at each of these. `live_action` (:customer /
+    # :staff) tells RegisterLive which screen it is rendering for.
+    live "/customer/*path", RegisterLive, :customer
+    live "/staff/*path", RegisterLive, :staff
   end
 
   # Other scopes may use custom stacks.
