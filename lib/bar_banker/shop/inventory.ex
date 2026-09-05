@@ -1,4 +1,4 @@
-defmodule BarBanker.Inventory do
+defmodule BarBanker.Shop.Inventory do
   def get_shop_items() do
     :code.priv_dir(:bar_banker)
     |> Path.join("data/inventory.json")

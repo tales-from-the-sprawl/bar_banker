@@ -1,4 +1,4 @@
-defmodule BarBanker.Client do
+defmodule BarBanker.Shop.Client do
   @base_url Application.compile_env!(:bar_banker, :base_url)
   @auth Application.compile_env!(:bar_banker, :auth)
 

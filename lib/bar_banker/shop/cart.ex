@@ -1,4 +1,4 @@
-defmodule BarBanker.Cart do
+defmodule BarBanker.Shop.Cart do
   use Agent
 
   def start_link([]) do

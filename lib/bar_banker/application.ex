@@ -10,7 +10,7 @@ defmodule BarBanker.Application do
     children =
       [
         # Children for all targets
-        BarBanker.Cart
+        BarBanker.Shop.Cart
       ] ++ phoenix_children() ++ children()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
