@@ -13,23 +13,35 @@ defmodule BarBanker.NFC do
     Phoenix.PubSub.broadcast(BarBanker.PubSub, "nfc", message)
   end
 
-  @impl LibNFC.Presence
-  def open_device(_client_state) do
-    LibNFC.open(@connstring)
+  def current_tag() do
+    GenServer.call(__MODULE__, :read)
   end
 
   @impl LibNFC.Presence
-  def handle_target_in(target, _) do
+  def open_device({_tag, dev}) do
+    if dev == :mock do
+      {:ok, :mock}
+    else
+      LibNFC.open(@connstring)
+    end
+  end
+
+  @impl LibNFC.Presence
+  def handle_target_in(target, {_, dev}) do
     uid = uid_hex(target["uid"])
     Logger.info("nfc: tag in: #{uid}")
     broadcast_nfc({:nfc, :in, uid})
-    {:ok, uid}
+    {:ok, {uid, dev}}
   end
 
   @impl LibNFC.Presence
-  def handle_target_out(uid) do
+  def handle_target_out({uid, dev}) do
     Logger.info("nfc: tag out: #{uid}")
     broadcast_nfc({:nfc, :out, uid})
-    {:ok, nil}
+    {:ok, {nil, dev}}
+  end
+
+  def handle_call(:read, _from, %{client_state: {uid, _}} = state) do
+    {:reply, uid, state}
   end
 end

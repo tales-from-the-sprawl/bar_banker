@@ -325,6 +325,7 @@ defmodule BarBankerWeb.CoreComponents do
   end
 
   slot :action, doc: "the slot for showing user actions in the last table column"
+  slot :footer
 
   def table(assigns) do
     assigns =
@@ -360,6 +361,9 @@ defmodule BarBankerWeb.CoreComponents do
           </td>
         </tr>
       </tbody>
+      <tfoot :if={@footer}>
+        {render_slot(@footer)}
+      </tfoot>
     </table>
     """
   end

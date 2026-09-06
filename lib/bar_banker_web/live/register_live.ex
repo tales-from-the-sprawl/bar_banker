@@ -1,9 +1,9 @@
 defmodule BarBankerWeb.RegisterLive do
-  alias BarBanker.Client
+  alias BarBanker.Shop.Client
   use BarBankerWeb, :live_view
   alias BarBanker.NFC
-  alias BarBanker.Cart
-  alias BarBanker.Inventory
+  alias BarBanker.Shop.Cart
+  alias BarBanker.Shop.Inventory
 
   @shop_handle "trinity_taskbar"
 
@@ -40,9 +40,7 @@ defmodule BarBankerWeb.RegisterLive do
   end
 
   def handle_event("select_category", %{"code" => code, "repeat" => false}, socket) do
-    path =
-      socket.assigns.path
-      |> Path.join(code)
+    path = Path.join(socket.assigns.path, code)
 
     socket =
       socket
@@ -198,7 +196,7 @@ defmodule BarBankerWeb.RegisterLive do
   end
 
   defp menu_action(id, %{"children" => _}, path),
-    do: JS.patch(~p"/#{Path.join(path ++ [id])}")
+    do: JS.patch(~p"/#{Path.join(path, id)}")
 
   defp menu_action(_, _, _), do: "add_cart"
 

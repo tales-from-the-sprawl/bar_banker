@@ -23,6 +23,10 @@ defmodule BarBanker.Shop do
     Phoenix.PubSub.subscribe(BarBanker.PubSub, "cart")
   end
 
+  def subscribe_order() do
+    Phoenix.PubSub.subscribe(BarBanker.PubSub, "order")
+  end
+
   @doc "The current cart, as a list of menu items with a `\"count\"` key."
   def get_cart() do
     Cart.get()
@@ -95,10 +99,17 @@ defmodule BarBanker.Shop do
   ledger declined the transfer.
   """
   def checkout(sender, amount, opts \\ []) do
-    Client.transfer(sender, @shop_handle, amount, opts)
+    broadcast_order({:order, :loading})
+    res = Client.transfer(sender, @shop_handle, amount, opts)
+    broadcast_order({:order, :ok})
+    res
   end
 
   defp broadcast_cart(message) do
     Phoenix.PubSub.broadcast(BarBanker.PubSub, "cart", message)
+  end
+
+  defp broadcast_order(message) do
+    Phoenix.PubSub.broadcast(BarBanker.PubSub, "order", message)
   end
 end

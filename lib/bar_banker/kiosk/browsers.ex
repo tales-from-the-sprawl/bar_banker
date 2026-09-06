@@ -22,7 +22,7 @@ defmodule BarBanker.Kiosk.Browsers do
     %{
       id: :staff,
       app_id: "se.databladet.bar_banker.staff",
-      url: "http://localhost:4000/staff"
+      url: "http://localhost:4000/menu"
     }
   ]
 

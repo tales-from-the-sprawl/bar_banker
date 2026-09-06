@@ -40,4 +40,7 @@ defmodule BarBanker.Utils do
 
   defp opposite(:pressed), do: :released
   defp opposite(:released), do: :pressed
+
+  def fmt_money(amount) when is_integer(amount), do: "¥#{amount}"
+  def fmt_money(_), do: ""
 end

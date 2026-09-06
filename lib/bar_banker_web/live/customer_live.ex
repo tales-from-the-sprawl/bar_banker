@@ -1,6 +1,7 @@
 defmodule BarBankerWeb.CustomerLive do
   use BarBankerWeb, :live_view
   alias BarBanker.Shop
+  import BarBanker.Utils, only: [fmt_money: 1]
 
   @impl true
   def render(assigns) do
@@ -69,7 +70,4 @@ defmodule BarBankerWeb.CustomerLive do
     |> assign(:cart, cart)
     |> assign(:total, total)
   end
-
-  defp fmt_money(amount) when is_integer(amount), do: "¥#{amount}"
-  defp fmt_money(_), do: ""
 end
