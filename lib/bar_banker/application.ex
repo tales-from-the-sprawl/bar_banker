@@ -5,6 +5,8 @@ defmodule BarBanker.Application do
 
   use Application
 
+  require Logger
+
   @impl true
   def start(_type, _args) do
     children =
@@ -26,7 +28,7 @@ defmodule BarBanker.Application do
         # Starts a worker by calling: BarBanker.Worker.start_link(arg)
         # {BarBanker.Worker, arg},
         {LibNFC.Mock, []},
-        {BarBanker.NFC, client_state: {nil, :mock}, name: BarBanker.NFC}
+        {Task, fn -> start_nfc(client_state: {nil, :mock}, name: BarBanker.NFC) end}
       ]
     end
   else
@@ -42,7 +44,10 @@ defmodule BarBanker.Application do
         # {BarBanker.Worker, arg},
         {BarBanker.Kiosk.Udevd, []},
         {BarBanker.Kiosk.Supervisor, []},
-        {BarBanker.NFC, client_state: {nil, :real}, name: BarBanker.NFC},
+        Supervisor.child_spec(
+          {Task, fn -> start_nfc(client_state: {nil, :real}, name: BarBanker.NFC) end},
+          id: :start_nfc
+        ),
         # {BarBanker.Keypad, []},
         {Task, &start_node/0}
       ]
@@ -52,6 +57,28 @@ defmodule BarBanker.Application do
       {_, 0} = System.cmd("epmd", ~w"-daemon")
       _ = Node.start(:"bar_banker@bar_banker.local")
       Node.set_cookie(Application.get_env(:mix_tasks_upload_hotswap, :cookie))
+    end
+  end
+
+  @nfc_retry_ms 5_000
+
+  # Runs outside the main supervision tree's synchronous startup: a `Supervisor`
+  # always treats a child's *first* start failure as fatal to the whole
+  # supervisor, regardless of that child's `:restart` setting — that only
+  # governs restarts after a successful start. So if the NFC reader can't be
+  # opened yet (unplugged, still powering up, transient I2C hiccup, ...),
+  # starting it from inside a one-off `Task` — and retrying here instead of
+  # giving up — keeps that failure from ever reaching `BarBanker.Supervisor`
+  # and taking down the whole app (and with it, firmware validation).
+  defp start_nfc(opts) do
+    case BarBanker.NFC.start_link(opts) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("BarBanker.NFC failed to start (#{inspect(reason)}), retrying...")
+        Process.sleep(@nfc_retry_ms)
+        start_nfc(opts)
     end
   end
 
