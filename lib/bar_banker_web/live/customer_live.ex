@@ -49,6 +49,8 @@ defmodule BarBankerWeb.CustomerLive do
     socket =
       socket
       |> assign_cart(Shop.get_cart())
+      |> assign(:waiting_for_card, false)
+      |> assign(:checkout_in_progress, false)
 
     {:ok, socket}
   end
