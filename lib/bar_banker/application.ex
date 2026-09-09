@@ -42,7 +42,7 @@ defmodule BarBanker.Application do
         # Children for all targets except host
         # Starts a worker by calling: BarBanker.Worker.start_link(arg)
         # {BarBanker.Worker, arg},
-        {BarBanker.Kiosk.Udevd, []},
+        # {BarBanker.Kiosk.Udevd, []},
         {BarBanker.Kiosk.Supervisor, []},
         Supervisor.child_spec(
           {Task, fn -> start_nfc(client_state: {nil, :real}, name: BarBanker.NFC) end},
