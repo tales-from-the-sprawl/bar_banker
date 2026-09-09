@@ -2,3 +2,11 @@
 elixir = "1.20.4-otp-29"
 erlang = "29"
 fwup = "latest"
+
+[tasks.firmware]
+env = { MIX_TARGET = 'rpi4' }
+run = "mix firmware"
+
+[tasks.upload]
+env = { MIX_TARGET = 'rpi4' }
+run = "./upload.sh bar-banker"
