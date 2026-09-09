@@ -18,8 +18,8 @@ defmodule BarBankerWeb.MenuLive do
       <:col :let={{_id, item}} label="Price">{fmt_money(item["price"])}</:col>
     </.table>
     <div class="flex gap-4 items-center">
-      <span>
-        <kbd class="kbd" phx-window-keydown="unselect_category" phx-key="Escape">ESC</kbd> Back
+      <span :if={@path != ["menu"]}>
+        <kbd class="kbd" phx-window-keydown="navigate_up" phx-key="Escape">ESC</kbd> Back
       </span>
       <span>
         <kbd class="kbd" phx-window-keydown={JS.navigate(~p"/checkout")} phx-key="Enter">Enter</kbd>
