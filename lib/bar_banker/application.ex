@@ -44,6 +44,7 @@ defmodule BarBanker.Application do
         # {BarBanker.Worker, arg},
         # {BarBanker.Kiosk.Udevd, []},
         {BarBanker.Kiosk.Supervisor, []},
+        {BarBanker.Kiosk.InputWatcher, []},
         Supervisor.child_spec(
           {Task, fn -> start_nfc(client_state: {nil, :real}, name: BarBanker.NFC) end},
           id: :start_nfc

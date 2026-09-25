@@ -10,3 +10,7 @@ run = "mix firmware"
 [tasks.upload]
 env = { MIX_TARGET = 'rpi4' }
 run = "./upload.sh bar-banker"
+
+[tasks.reload]
+env = { MIX_TARGET = 'rpi4' }
+run = "mix upload.hotswap"

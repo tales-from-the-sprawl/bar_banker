@@ -34,6 +34,13 @@ defmodule BarBankerWeb.CustomerLive do
         </div>
       <% end %>
 
+      <button class="focus:bg-green-500"
+        phx-click={JS.remove_class("bg-red-500")}
+        phx-window-keydown={JS.add_class("bg-red-500")}
+      >become red</button>
+
+      <div>test2</div>
+
       <div :if={@waiting_for_card}>Please insert card</div>
       <div :if={@checkout_in_progress}>Order in progress...</div>
     </Layouts.app>

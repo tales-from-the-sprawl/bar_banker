@@ -2,7 +2,6 @@ defmodule BarBankerWeb.CheckoutLive do
   use BarBankerWeb, :live_view
   alias BarBanker.NFC
   alias BarBanker.Shop
-  alias Phoenix.LiveView.AsyncResult
   import BarBanker.Utils, only: [fmt_money: 1]
 
   @impl true

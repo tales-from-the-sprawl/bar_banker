@@ -49,8 +49,8 @@ config :bar_banker, BarBankerWeb.Endpoint,
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$"E,
-      ~r"lib/celltower_web/router\.ex$"E,
-      ~r"lib/celltower_web/(controllers|live|components)/.*\.(ex|heex)$"E
+      ~r"lib/bar_banker_web/router\.ex$"E,
+      ~r"lib/bar_banker_web/(controllers|live|components)/.*\.(ex|heex)$"E
     ]
   ]
 
