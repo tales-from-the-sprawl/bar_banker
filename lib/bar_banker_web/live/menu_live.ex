@@ -20,7 +20,7 @@ defmodule BarBankerWeb.MenuLive do
     </.table>
     <div class="flex gap-4 items-center">
       <span :if={@path != []}>
-        <kbd class="kbd" phx-window-keydown="navigate_up" phx-key="Backspace">Backspace</kbd> Back
+        <kbd class="kbd" phx-window-keydown="navigate_up" phx-key="Backspace">←</kbd> Back
       </span>
       <span>
         <kbd class="kbd" phx-window-keydown={JS.navigate(~p"/checkout")} phx-key="Enter">Enter</kbd>

@@ -17,8 +17,8 @@ defmodule BarBankerWeb.CheckoutLive do
     </.table>
     <div class="">
       <div class="flex gap-4 items-center">
-        <span phx-window-keydown={JS.navigate(~p"/menu")} phx-key="Escape">
-          <kbd class="kbd">ESC</kbd> Back
+        <span phx-window-keydown={JS.navigate(~p"/menu")} phx-key="Backspace">
+          <kbd class="kbd">←</kbd> Back
         </span>
         <span phx-window-keydown="clear_cart" phx-key="c">
           <kbd class="kbd">C</kbd> Clear
