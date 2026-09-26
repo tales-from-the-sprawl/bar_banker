@@ -6,13 +6,31 @@ defmodule BarBanker.Kiosk.Browsers do
   `/etc/xdg/weston/weston.ini` (rootfs_overlay) — see that file for which
   physical HDMI port shows which screen.
 
-  Kept as its own plain `:one_for_one` supervisor, rather than folded
-  straight into `BarBanker.Kiosk.Supervisor`'s `:rest_for_one` chain, so that
-  a crash in one screen's browser process restarts only that window and
-  leaves the other screen alone.
+  weston's kiosk-shell gives keyboard focus to whichever surface was mapped
+  last, and the staff screen is the one that needs the keyboard. So the order
+  of `@screens` matters: the staff screen comes last, and its `wait_for`
+  additionally blocks until the customer `cog` answers on D-Bus (plus a short
+  grace period for its window to map). `MuonTrap.Daemon` runs `wait_for` in
+  a background task, so list order alone wouldn't guarantee which process
+  actually spawns first.
+
+  Kept as its own supervisor, separate from `BarBanker.Kiosk.Supervisor`'s
+  chain, so browser crashes don't take down weston/dbus. It's `:rest_for_one`
+  so a crash of the staff browser restarts only that window, while a crash
+  of the customer browser also restarts the staff one after it — otherwise
+  the respawned customer window would steal keyboard focus.
   """
   use Supervisor
 
+  require Logger
+
+  alias BarBanker.Kiosk.Cog
+
+  @poll_ms 500
+  @max_retries 20
+  @map_grace_ms 1_000
+
+  # Order matters: the staff screen must stay last (see moduledoc).
   @screens [
     %{
       id: :customer,
@@ -40,9 +58,41 @@ defmodule BarBanker.Kiosk.Browsers do
     env = Keyword.fetch!(args, :env)
     wait_for = Keyword.fetch!(args, :wait_for)
 
-    children = Enum.map(@screens, &cog_spec(&1, env, wait_for))
+    {staff, others} = Enum.split_with(@screens, &(&1.id == :staff))
 
-    Supervisor.init(children, strategy: :one_for_one)
+    staff_wait_for = fn ->
+      wait_for.()
+      Enum.each(others, &wait_for_cog(&1.app_id))
+    end
+
+    children =
+      Enum.map(others, &cog_spec(&1, env, wait_for)) ++
+        Enum.map(staff, &cog_spec(&1, env, staff_wait_for))
+
+    Supervisor.init(children, strategy: :rest_for_one)
+  end
+
+  # Best-effort: if the other window never shows up, start the staff browser
+  # anyway rather than leaving the staff screen blank.
+  defp wait_for_cog(app_id, retries \\ @max_retries)
+
+  defp wait_for_cog(app_id, 0) do
+    Logger.warning("BarBanker.Kiosk.Browsers: #{app_id} did not come up, starting staff anyway")
+  end
+
+  defp wait_for_cog(app_id, retries) do
+    if cog_up?(app_id) do
+      Process.sleep(@map_grace_ms)
+    else
+      Process.sleep(@poll_ms)
+      wait_for_cog(app_id, retries - 1)
+    end
+  end
+
+  defp cog_up?(app_id) do
+    Cog.ping(app_id) == :ok
+  catch
+    _kind, _reason -> false
   end
 
   defp cog_spec(screen, env, wait_for) do
