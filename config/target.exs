@@ -105,3 +105,8 @@ config :mdns_lite,
 # Uncomment to use target specific configurations
 
 # import_config "#{Mix.target()}.exs"
+
+# PN532 NFC reader on the Pi's SPI0/CE0. `BarBanker.NFC` polls this bus on
+# request; the supervisor keeps the connection alive and reconnects.
+config :bar_banker, BarBanker.PN532.Supervisor, buses: ["spidev0.0"]
+config :bar_banker, BarBanker.NFC, bus: "spidev0.0"

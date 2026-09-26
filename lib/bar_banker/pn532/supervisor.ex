@@ -5,7 +5,7 @@ defmodule BarBanker.PN532.Supervisor do
   its own raw SPI handle, and it reconnects automatically after failures
   or crashes.
 
-  Buses are read from `config :ytm, #{inspect(__MODULE__)}, buses: [...]`,
+  Buses are read from `config :bar_banker, #{inspect(__MODULE__)}, buses: [...]`,
   and `low_power: true` in the same config starts every server in
   low-power mode (see `BarBanker.PN532.Server`).
   The `Registry` used to look servers up by bus name is started as the
@@ -23,7 +23,7 @@ defmodule BarBanker.PN532.Supervisor do
 
   @impl Supervisor
   def init(_args) do
-    config = Application.get_env(:ytm, __MODULE__, [])
+    config = Application.get_env(:bar_banker, __MODULE__, [])
     buses = config[:buses] || []
     server_opts = Keyword.take(config, [:low_power])
 

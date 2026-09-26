@@ -88,10 +88,6 @@ defmodule BarBanker.MixProject do
       },
       {:nimble_csv, "~> 1.3"},
 
-      # PN532 NFC reader over I2C. Fork that statically compiles a vendored
-      # libnfc (pn532_i2c driver) so it cross-compiles for Nerves.
-      {:libnfc_ex, github: "lawik/libnfc_ex", branch: "main"},
-
       # Allow Nerves.Runtime on host to support development, testing and CI.
       # See config/host.exs for usage.
       {:nerves_runtime, "~> 0.13.13"},

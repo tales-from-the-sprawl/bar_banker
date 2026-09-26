@@ -100,6 +100,16 @@ defmodule BarBanker.PN532.Server do
           | {:error, :not_connected | :not_started | term()}
   def scan(bus_name), do: call(bus_name, :scan, @call_timeout)
 
+  @doc """
+  Checks once for a passive target and returns its `{uid, sak}` without
+  reading any tag data. Returns `{:error, :timeout}` if no card showed up
+  within the driver's default timeout; callers poll by calling it again.
+  """
+  @spec detect(String.t()) ::
+          {:ok, {uid :: binary(), sak :: byte()}}
+          | {:error, :not_connected | :not_started | term()}
+  def detect(bus_name), do: call(bus_name, :detect, @call_timeout)
+
   @spec write_ndef(String.t(), binary(), byte(), binary()) ::
           :ok | {:error, :not_connected | :not_started | term()}
   def write_ndef(bus_name, uid, sak, message) do
@@ -160,6 +170,10 @@ defmodule BarBanker.PN532.Server do
         {:ok, {uid, sak, PN532.read_ndef(pn532, uid, sak)}}
       end
     end)
+  end
+
+  def handle_call(:detect, _from, state) do
+    with_awake(state, &PN532.read_passive_target/1)
   end
 
   def handle_call({:write_ndef, uid, sak, message}, _from, state) do

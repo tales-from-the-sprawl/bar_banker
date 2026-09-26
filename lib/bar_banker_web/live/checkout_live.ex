@@ -37,13 +37,8 @@ defmodule BarBankerWeb.CheckoutLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      NFC.subscribe_nfc()
-    end
-
     socket =
       socket
-      # |> assign(:current_tag, NFC.current_tag())
       |> assign(:waiting_for_card, false)
       |> assign(:checkout_in_progress, false)
       |> assign_cart(Shop.get_cart())
@@ -53,35 +48,51 @@ defmodule BarBankerWeb.CheckoutLive do
 
   @impl true
   def handle_event("clear_cart", _params, socket) do
-    {:noreply, assign_cart(socket, Shop.clear_cart())}
-  end
-
-  def handle_event("checkout", _params, socket) do
-    {:noreply, assign_cart(socket, Shop.clear_cart())}
-  end
-
-  @impl true
-  def handle_info({:nfc, :in, uid}, %{assigns: %{waiting_for_card: true}} = socket) do
-    total = socket.assigns.total
-
     socket =
       socket
-      |> assign(:current_tag, uid)
+      |> cancel_async(:wait_for_tag)
       |> assign(:waiting_for_card, false)
-      |> start_checkout(uid, total)
+      |> assign_cart(Shop.clear_cart())
 
     {:noreply, socket}
   end
 
-  def handle_info({:nfc, :in, uid}, socket) do
-    {:noreply, assign(socket, :current_tag, uid)}
+  def handle_event("checkout", _params, socket)
+      when socket.assigns.cart == [] or socket.assigns.waiting_for_card or
+             socket.assigns.checkout_in_progress do
+    {:noreply, socket}
   end
 
-  def handle_info({:nfc, :out, _uid}, socket) do
-    {:noreply, assign(socket, :current_tag, nil)}
+  def handle_event("checkout", _params, socket) do
+    # The reader only polls while asked to: keep asking until a card shows
+    # up. The task dies with this LiveView, which stops the polling.
+    socket =
+      socket
+      |> assign(:waiting_for_card, true)
+      |> start_async(:wait_for_tag, &NFC.wait_for_tag/0)
+
+    {:noreply, socket}
   end
 
   @impl true
+  def handle_async(:wait_for_tag, {:ok, uid}, socket) do
+    socket =
+      socket
+      |> assign(:waiting_for_card, false)
+      |> start_checkout(uid, socket.assigns.total)
+
+    {:noreply, socket}
+  end
+
+  def handle_async(:wait_for_tag, {:exit, reason}, socket) do
+    socket =
+      socket
+      |> assign(:waiting_for_card, false)
+      |> put_flash(:error, "Card reader failed: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
   def handle_async(:checkout, {:ok, {message, _amount}}, socket) do
     Shop.clear_cart()
 
