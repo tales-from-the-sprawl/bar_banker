@@ -30,12 +30,12 @@ defmodule BarBankerWeb.MenuLiveTest do
     assert [%{"label" => "Shanghai Screamer", "count" => 1}] = Shop.get_cart()
   end
 
-  test "escape navigates back to the top-level menu", %{conn: conn} do
+  test "backspace navigates back to the top-level menu", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/menu")
     refute html =~ "Back"
 
     {:ok, view, _html} = live(conn, ~p"/menu/drinks")
-    render_keydown(element(view, "kbd[phx-key=\"Escape\"]"), %{"key" => "Escape"})
+    render_keydown(element(view, "kbd[phx-key=\"Backspace\"]"), %{"key" => "Backspace"})
     assert_patch(view, ~p"/menu")
     refute render(view) =~ "Back"
   end
