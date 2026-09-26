@@ -5,16 +5,15 @@ defmodule BarBanker.Shop do
 
   Everything outside this module — the LiveViews in particular — should
   call through here rather than reaching into `BarBanker.Shop.Cart`,
-  `BarBanker.Shop.Inventory`, `BarBanker.Shop.Sin`, or `BarBanker.Shop.Client`
-  directly.
+  `BarBanker.Shop.Inventory`, `BarBanker.Shop.Sin`, `BarBanker.Finance`, or
+  `BarBanker.BotClient` directly.
   """
 
-  alias BarBanker.Shop.Cart
   alias BarBanker.BotClient
+  alias BarBanker.Finance
+  alias BarBanker.Shop.Cart
   alias BarBanker.Shop.Inventory
   alias BarBanker.Shop.Sin
-
-  @shop_handle "trinity_taskbar"
 
   ## Cart
 
@@ -93,16 +92,31 @@ defmodule BarBanker.Shop do
   end
 
   @doc """
-  Charges `amount` from `sender`'s account to the shop's own account.
-
-  Returns `{:ok, {message, amount}}` on success, `{:error, message}` if the
-  ledger declined the transfer.
+  Blocks until a card is presented at the reader and returns it, ready for
+  `checkout/2`. Run it from a task and cancel that task to stop waiting.
   """
-  def checkout(sender, amount, opts \\ []) do
+  def wait_for_card() do
+    Finance.wait_for_card()
+  end
+
+  @doc """
+  Charges `amount` to `card` (from `wait_for_card/0`), paying the shop's own
+  account.
+
+  Returns `{:ok, {message, amount}}` on success, `{:error, reason}` otherwise.
+  """
+  def checkout(card, amount) do
     broadcast_order({:order, :loading})
-    res = BotClient.transfer(sender, @shop_handle, amount, opts)
-    broadcast_order({:order, :ok})
-    res
+
+    case Finance.charge(card, amount) do
+      {:ok, _result} = ok ->
+        broadcast_order({:order, :ok})
+        ok
+
+      {:error, _reason} = error ->
+        broadcast_order({:order, :error})
+        error
+    end
   end
 
   defp broadcast_cart(message) do

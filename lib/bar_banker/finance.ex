@@ -1,61 +1,57 @@
 defmodule BarBanker.Finance do
   @moduledoc """
-  Transfers funds between the two cards scanned on the kiosk's fixed NFC readers.
+  Point-of-sale charging: debits the card presented at the kiosk's NFC reader
+  and credits the shop's own ledger account, `"trinity_taskbar"`.
 
-  A **sincard** carries a `"sin:xxxx"` handle; its balance lives remotely and is
-  moved with `BarBanker.BotClient.transfer/3,4`. A **credstick** carries its balance as a
-  plain integer string directly in its NDEF text record, so moving money to/from
-  one means rewriting that record via `BarBanker.PN532.Server.write_ndef/4`.
+  A **sincard** carries a `"sin:xxxx"` handle; its balance lives remotely, so
+  charging it is a single `BarBanker.BotClient.transfer/3,4` to the shop.
 
-  Since a transfer between anything but two sincards needs two separate operations
-  (an HTTP call and/or one or two card writes) that can't be done atomically, every
-  such transfer always runs its debit step before its credit step, and
-  automatically compensates (refunds/rewrites) the debit step if the credit step
-  fails, so a partial failure never duplicates money - at worst it's destroyed and
+  A **credstick** carries its balance as a plain integer string directly in its
+  NDEF text record. Charging it takes two separate operations that can't be done
+  atomically: rewriting the card with the reduced balance (via
+  `BarBanker.PN532.Server.write_ndef/4`), then minting the same amount into the
+  shop's account (a ledger transfer with no sender). The card is always debited
+  first, and if the ledger credit fails the card's old balance is written back,
+  so a partial failure never creates money - at worst it's destroyed and
   reported as needing manual reconciliation.
   """
 
   alias BarBanker.BotClient
   alias BarBanker.NDEF
+  alias BarBanker.NFC
   alias BarBanker.PN532.Server, as: PN532Server
 
-  @sender_bus "spidev0.1"
-  @receiver_bus "spidev0.0"
+  require Logger
+
+  @receiver "trinity_taskbar"
+  @retry_ms 1_000
 
   @type card :: {:sin, String.t()} | {:cred, non_neg_integer()}
   @type locator :: {bus :: String.t(), uid :: binary(), sak :: byte()}
-
-  @type step ::
-          {:bot_transfer, sender :: String.t() | nil, receiver :: String.t() | nil,
-           amount :: integer()}
-          | {:write_balance, side :: :sender | :receiver, new_balance :: non_neg_integer(),
-             old_balance :: non_neg_integer()}
+  @opaque scanned_card :: {card(), locator()}
 
   @type reconciliation_error ::
           {:reconciliation_required,
            %{
-             sender_handle: String.t(),
-             amount: integer(),
-             debit_error: term(),
+             bus: String.t(),
+             uid: binary(),
+             sak: byte(),
+             expected_balance: non_neg_integer(),
+             credit_error: term(),
              compensation_error: term()
            }}
-          | {:reconciliation_required,
-             %{
-               bus: String.t(),
-               uid: binary(),
-               sak: byte(),
-               expected_balance: non_neg_integer(),
-               debit_error: term(),
-               compensation_error: term()
-             }}
 
-  @type transfer_error ::
+  @type charge_error ::
           :invalid_amount
           | :insufficient_funds
           | :card_not_recognized
           | :no_text_record
           | reconciliation_error()
           | term()
+
+  @doc "The ledger handle every charge is paid to."
+  @spec receiver() :: String.t()
+  def receiver(), do: @receiver
 
   @doc "Classifies a decoded NDEF text record as a sincard handle or a credstick balance."
   @spec parse_card({String.t(), String.t()}) :: {:ok, card()} | {:error, :card_not_recognized}
@@ -65,7 +61,7 @@ defmodule BarBanker.Finance do
 
   def parse_card({_language, content}) do
     case Integer.parse(content) do
-      {value, ""} -> {:ok, {:cred, value}}
+      {value, ""} when value >= 0 -> {:ok, {:cred, value}}
       _other -> {:error, :card_not_recognized}
     end
   end
@@ -75,7 +71,7 @@ defmodule BarBanker.Finance do
   into a `card/0`, passing through a scan-level NDEF read error unchanged.
   """
   @spec decode_card({:ok, binary()} | {:error, term()}) ::
-          {:ok, card()} | {:error, transfer_error()}
+          {:ok, card()} | {:error, charge_error()}
   def decode_card({:error, reason}), do: {:error, reason}
 
   def decode_card({:ok, raw_ndef}) do
@@ -90,122 +86,93 @@ defmodule BarBanker.Finance do
   end
 
   @doc """
-  Plans the ordered steps to move `amount` from `sender` to `receiver`, or an error
-  if the transfer can't proceed (an invalid amount, or a credstick sender without
-  enough balance). Pure - performs no I/O.
+  Checks the kiosk's NFC reader (the bus configured for `BarBanker.NFC`) once
+  and decodes the card on it, ready to pass to `charge/2`.
   """
-  @spec plan_transfer(card(), card(), integer()) :: {:ok, [step()]} | {:error, transfer_error()}
-  def plan_transfer(_sender, _receiver, amount) when amount <= 0, do: {:error, :invalid_amount}
+  @spec read_card() :: {:ok, scanned_card()} | {:error, charge_error()}
+  def read_card() do
+    bus = NFC.bus()
 
-  def plan_transfer({:sin, sender_id}, {:sin, receiver_id}, amount) do
-    {:ok, [{:bot_transfer, "sin:" <> sender_id, "sin:" <> receiver_id, amount}]}
+    with {:ok, scan} <- PN532Server.scan(bus) do
+      decode_scan(bus, scan)
+    end
   end
-
-  def plan_transfer({:sin, sender_id}, {:cred, receiver_balance}, amount) do
-    {:ok,
-     [
-       {:bot_transfer, "sin:" <> sender_id, nil, amount},
-       {:write_balance, :receiver, receiver_balance + amount, receiver_balance}
-     ]}
-  end
-
-  def plan_transfer({:cred, sender_balance}, {:sin, receiver_id}, amount)
-      when sender_balance >= amount do
-    {:ok,
-     [
-       {:write_balance, :sender, sender_balance - amount, sender_balance},
-       {:bot_transfer, nil, "sin:" <> receiver_id, amount}
-     ]}
-  end
-
-  def plan_transfer({:cred, _sender_balance}, {:sin, _receiver_id}, _amount),
-    do: {:error, :insufficient_funds}
-
-  def plan_transfer({:cred, sender_balance}, {:cred, receiver_balance}, amount)
-      when sender_balance >= amount do
-    {:ok,
-     [
-       {:write_balance, :sender, sender_balance - amount, sender_balance},
-       {:write_balance, :receiver, receiver_balance + amount, receiver_balance}
-     ]}
-  end
-
-  def plan_transfer({:cred, _sender_balance}, {:cred, _receiver_balance}, _amount),
-    do: {:error, :insufficient_funds}
 
   @doc """
-  Transfers `amount` from the card on `#{@sender_bus}` to the card on
-  `#{@receiver_bus}` - the kiosk's two NFC readers have fixed sender/receiver
-  roles.
-
-  Note: `BarBanker.BotClient.transfer/3,4` has no catch-all clause on its response body,
-  so an unexpected response shape raises instead of returning `{:error, _}`; if
-  that happens on the credit step after the debit step already succeeded, this
-  function crashes rather than running its compensation.
+  Polls the reader until a card is presented, then decodes it like
+  `read_card/0`. Blocks indefinitely: reader errors (no card yet, reader not
+  connected, bus hiccups) are retried, but a card that was found and can't be
+  read or recognized is returned as an error. Run it from a task and cancel
+  that task to stop polling.
   """
-  @spec transfer(pos_integer()) :: {:ok, term()} | {:error, transfer_error()}
-  def transfer(amount) do
-    with {:ok, {sender_uid, sender_sak, sender_ndef}} <- PN532Server.scan(@sender_bus),
-         {:ok, {receiver_uid, receiver_sak, receiver_ndef}} <- PN532Server.scan(@receiver_bus),
-         {:ok, sender_card} <- decode_card(sender_ndef),
-         {:ok, receiver_card} <- decode_card(receiver_ndef),
-         {:ok, steps} <- plan_transfer(sender_card, receiver_card, amount) do
-      execute_steps(steps, %{
-        sender: {@sender_bus, sender_uid, sender_sak},
-        receiver: {@receiver_bus, receiver_uid, receiver_sak}
-      })
+  @spec wait_for_card() :: {:ok, scanned_card()} | {:error, charge_error()}
+  def wait_for_card() do
+    bus = NFC.bus()
+
+    case PN532Server.scan(bus) do
+      {:ok, scan} ->
+        decode_scan(bus, scan)
+
+      {:error, reason} when reason in [:timeout, :no_target_found] ->
+        wait_for_card()
+
+      {:error, reason} ->
+        Logger.debug("finance: card read failed (#{inspect(reason)}), retrying...")
+        Process.sleep(@retry_ms)
+        wait_for_card()
     end
   end
 
-  @spec execute_steps([step()], %{sender: locator(), receiver: locator()}) ::
-          {:ok, term()} | {:error, transfer_error()}
-  defp execute_steps([step], parties), do: run_step(step, parties)
+  @doc """
+  Charges `amount` to a card from `read_card/0` or `wait_for_card/0`, paying it
+  to `receiver/0`. A credstick must still be on the reader, since its new
+  balance is written back to it.
 
-  defp execute_steps([debit_step, credit_step], parties) do
-    case run_step(debit_step, parties) do
-      {:ok, _result} ->
-        case run_step(credit_step, parties) do
-          {:ok, _result} = ok -> ok
-          {:error, credit_error} -> compensate(debit_step, credit_error, parties)
-        end
+  Returns the ledger's `{:ok, {message, amount}}` on success.
+  """
+  @spec charge(scanned_card(), integer()) :: {:ok, term()} | {:error, charge_error()}
+  def charge(_scanned_card, amount) when not is_integer(amount) or amount <= 0,
+    do: {:error, :invalid_amount}
 
-      {:error, _reason} = error ->
-        error
+  def charge({card, locator}, amount), do: charge_card(card, locator, amount)
+
+  @spec decode_scan(String.t(), {binary(), byte(), {:ok, binary()} | {:error, term()}}) ::
+          {:ok, scanned_card()} | {:error, charge_error()}
+  defp decode_scan(bus, {uid, sak, ndef}) do
+    with {:ok, card} <- decode_card(ndef) do
+      {:ok, {card, {bus, uid, sak}}}
     end
   end
 
-  @spec run_step(step(), %{sender: locator(), receiver: locator()}) ::
-          {:ok, term()} | {:error, term()}
-  defp run_step({:bot_transfer, sender, receiver, amount}, _parties) do
-    BotClient.transfer(sender, receiver, amount)
+  @spec charge_card(card(), locator(), pos_integer()) :: {:ok, term()} | {:error, charge_error()}
+  defp charge_card({:sin, id}, _locator, amount) do
+    ledger_transfer("sin:" <> id, amount)
   end
 
-  defp run_step({:write_balance, side, new_balance, _old_balance}, parties) do
-    write_balance(Map.fetch!(parties, side), new_balance)
+  defp charge_card({:cred, balance}, _locator, amount) when balance < amount do
+    {:error, :insufficient_funds}
   end
 
-  @spec compensate(step(), term(), %{sender: locator(), receiver: locator()}) ::
-          {:error, transfer_error()}
-  defp compensate({:bot_transfer, sender, receiver, amount}, credit_error, _parties) do
-    case BotClient.transfer(receiver, sender, amount) do
-      {:ok, _result} ->
-        {:error, credit_error}
-
-      {:error, compensation_error} ->
-        {:error,
-         {:reconciliation_required,
-          %{
-            sender_handle: sender || receiver,
-            amount: amount,
-            debit_error: credit_error,
-            compensation_error: compensation_error
-          }}}
+  defp charge_card({:cred, balance}, locator, amount) do
+    with {:ok, _new_balance} <- write_balance(locator, balance - amount) do
+      case ledger_transfer(nil, amount) do
+        {:ok, _result} = ok -> ok
+        {:error, credit_error} -> restore_balance(locator, balance, credit_error)
+      end
     end
   end
 
-  defp compensate({:write_balance, side, _new_balance, old_balance}, credit_error, parties) do
-    {bus, uid, sak} = locator = Map.fetch!(parties, side)
+  # `BotClient.transfer/3` raises on transport errors and unexpected response
+  # bodies; turn those into errors so a debited credstick still gets restored.
+  @spec ledger_transfer(String.t() | nil, pos_integer()) :: {:ok, term()} | {:error, term()}
+  defp ledger_transfer(sender, amount) do
+    BotClient.transfer(sender, @receiver, amount)
+  rescue
+    exception -> {:error, exception}
+  end
 
+  @spec restore_balance(locator(), non_neg_integer(), term()) :: {:error, charge_error()}
+  defp restore_balance({bus, uid, sak} = locator, old_balance, credit_error) do
     case write_balance(locator, old_balance) do
       {:ok, ^old_balance} ->
         {:error, credit_error}
@@ -218,7 +185,7 @@ defmodule BarBanker.Finance do
             uid: uid,
             sak: sak,
             expected_balance: old_balance,
-            debit_error: credit_error,
+            credit_error: credit_error,
             compensation_error: compensation_error
           }}}
     end

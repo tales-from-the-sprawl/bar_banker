@@ -1,6 +1,5 @@
 defmodule BarBankerWeb.CheckoutLive do
   use BarBankerWeb, :live_view
-  alias BarBanker.NFC
   alias BarBanker.Shop
   import BarBanker.Utils, only: [fmt_money: 1]
 
@@ -50,7 +49,7 @@ defmodule BarBankerWeb.CheckoutLive do
   def handle_event("clear_cart", _params, socket) do
     socket =
       socket
-      |> cancel_async(:wait_for_tag)
+      |> cancel_async(:wait_for_card)
       |> assign(:waiting_for_card, false)
       |> assign_cart(Shop.clear_cart())
 
@@ -69,22 +68,31 @@ defmodule BarBankerWeb.CheckoutLive do
     socket =
       socket
       |> assign(:waiting_for_card, true)
-      |> start_async(:wait_for_tag, &NFC.wait_for_tag/0)
+      |> start_async(:wait_for_card, &Shop.wait_for_card/0)
 
     {:noreply, socket}
   end
 
   @impl true
-  def handle_async(:wait_for_tag, {:ok, uid}, socket) do
+  def handle_async(:wait_for_card, {:ok, {:ok, card}}, socket) do
     socket =
       socket
       |> assign(:waiting_for_card, false)
-      |> start_checkout(uid, socket.assigns.total)
+      |> start_checkout(card, socket.assigns.total)
 
     {:noreply, socket}
   end
 
-  def handle_async(:wait_for_tag, {:exit, reason}, socket) do
+  def handle_async(:wait_for_card, {:ok, {:error, reason}}, socket) do
+    socket =
+      socket
+      |> assign(:waiting_for_card, false)
+      |> put_flash(:error, "Card not accepted: #{format_error(reason)}")
+
+    {:noreply, socket}
+  end
+
+  def handle_async(:wait_for_card, {:exit, reason}, socket) do
     socket =
       socket
       |> assign(:waiting_for_card, false)
@@ -93,7 +101,7 @@ defmodule BarBankerWeb.CheckoutLive do
     {:noreply, socket}
   end
 
-  def handle_async(:checkout, {:ok, {message, _amount}}, socket) do
+  def handle_async(:checkout, {:ok, {:ok, {message, _amount}}}, socket) do
     Shop.clear_cart()
 
     socket =
@@ -105,25 +113,40 @@ defmodule BarBankerWeb.CheckoutLive do
     {:noreply, socket}
   end
 
-  def handle_async(:checkout, {:exit, reason}, socket) do
+  def handle_async(:checkout, {:ok, {:error, reason}}, socket) do
     socket =
       socket
       |> assign(:checkout_in_progress, false)
-      |> put_flash(:error, reason)
+      |> put_flash(:error, "Payment failed: #{format_error(reason)}")
 
     {:noreply, socket}
   end
 
-  defp start_checkout(socket, sender, total) do
+  def handle_async(:checkout, {:exit, reason}, socket) do
+    socket =
+      socket
+      |> assign(:checkout_in_progress, false)
+      |> put_flash(:error, "Payment failed: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
+  defp start_checkout(socket, card, total) do
     socket
     |> assign(:checkout_in_progress, true)
-    |> start_async(:checkout, fn ->
-      case Shop.checkout(sender, total) do
-        {:ok, res} -> res
-        {:error, reason} -> raise reason
-      end
-    end)
+    |> start_async(:checkout, fn -> Shop.checkout(card, total) end)
   end
+
+  defp format_error(:insufficient_funds), do: "insufficient funds"
+  defp format_error(:card_not_recognized), do: "card not recognized"
+  defp format_error(:no_text_record), do: "card not recognized"
+
+  defp format_error({:reconciliation_required, _details}),
+    do: "card may be out of sync, contact staff"
+
+  defp format_error(message) when is_binary(message), do: message
+  defp format_error(%{__exception__: true} = exception), do: Exception.message(exception)
+  defp format_error(reason), do: inspect(reason)
 
   defp assign_cart(socket, cart) do
     total = Shop.cart_total(cart)

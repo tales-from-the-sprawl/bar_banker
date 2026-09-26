@@ -48,7 +48,9 @@ defmodule BarBanker.NFC do
     end
   end
 
-  defp bus() do
+  @doc "The I2C bus the kiosk's reader is on, from `config :bar_banker, BarBanker.NFC, bus: ...`."
+  @spec bus() :: String.t()
+  def bus() do
     Application.get_env(:bar_banker, __MODULE__, [])
     |> Keyword.get(:bus, @default_bus)
   end
