@@ -20,8 +20,8 @@ defmodule BarBankerWeb.CheckoutLive do
         <span phx-window-keydown={JS.navigate(~p"/menu")} phx-key="Backspace">
           <kbd class="kbd">←</kbd> Back
         </span>
-        <span phx-window-keydown="clear_cart" phx-key="c">
-          <kbd class="kbd">C</kbd> Clear
+        <span phx-window-keydown="clear_cart" phx-key=".">
+          <kbd class="kbd">Del</kbd> Clear
         </span>
         <span phx-window-keydown="checkout" phx-key="Enter">
           <kbd class="kbd">Enter</kbd> Order

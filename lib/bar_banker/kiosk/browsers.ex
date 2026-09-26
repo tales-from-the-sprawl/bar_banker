@@ -26,6 +26,10 @@ defmodule BarBanker.Kiosk.Browsers do
     }
   ]
 
+  @doc "The `--gapplication-app-id` of each screen's `cog` instance, keyed by screen id."
+  @spec app_ids() :: [{atom(), String.t()}]
+  def app_ids, do: Enum.map(@screens, &{&1.id, &1.app_id})
+
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)

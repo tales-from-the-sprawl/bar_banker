@@ -14,3 +14,6 @@ run = "./upload.sh bar-banker"
 [tasks.reload]
 env = { MIX_TARGET = 'rpi4' }
 run = "mix upload.hotswap"
+
+[tasks.refresh]
+run = "ssh bar-banker BarBanker.reload_browsers"
