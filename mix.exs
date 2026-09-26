@@ -77,8 +77,9 @@ defmodule BarBanker.MixProject do
       {:dbus, "~> 0.8"},
 
       # App deps
-      {:req, "~> 0.7"},
+      {:req, "~> 0.7.4"},
       {:circuits_gpio, "~> 2.3"},
+      {:circuits_spi, "~> 2.1"},
       {
         :tlv,
         # 2025-11-14
@@ -103,7 +104,7 @@ defmodule BarBanker.MixProject do
       # bumps to Nerves systems. Since these include Linux kernel and Erlang
       # version updates, please review their release notes in case
       # changes to your application are needed.
-      {:kiosk_system_rpi4, "~> 2.1", runtime: false, targets: :rpi4}
+      {:kiosk_system_rpi4, "~> 2.1.2", runtime: false, targets: :rpi4}
     ] ++ phoenix_deps()
   end
 
@@ -133,7 +134,7 @@ defmodule BarBanker.MixProject do
       {:phoenix_html, "~> 4.3"},
       {:phoenix_live_reload, "~> 1.7", only: :dev},
       {:phoenix_live_view, "~> 1.2"},
-      {:lazy_html, ">= 0.1.0", only: :test},
+      {:lazy_html, ">= 0.1.13", only: :test},
       {:phoenix_live_dashboard, "~> 0.9.1"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
@@ -153,10 +154,7 @@ defmodule BarBanker.MixProject do
 
   defp phoenix_aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind bar_banker", "esbuild bar_banker"],
       "assets.deploy": [
