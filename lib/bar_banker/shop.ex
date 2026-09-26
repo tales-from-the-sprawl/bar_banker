@@ -10,7 +10,7 @@ defmodule BarBanker.Shop do
   """
 
   alias BarBanker.Shop.Cart
-  alias BarBanker.Shop.Client
+  alias BarBanker.BotClient
   alias BarBanker.Shop.Inventory
   alias BarBanker.Shop.Sin
 
@@ -89,7 +89,7 @@ defmodule BarBanker.Shop do
 
   @doc "The ledger balance for `handle`."
   def balance(handle) do
-    Client.balance(handle)
+    BotClient.balance(handle)
   end
 
   @doc """
@@ -100,7 +100,7 @@ defmodule BarBanker.Shop do
   """
   def checkout(sender, amount, opts \\ []) do
     broadcast_order({:order, :loading})
-    res = Client.transfer(sender, @shop_handle, amount, opts)
+    res = BotClient.transfer(sender, @shop_handle, amount, opts)
     broadcast_order({:order, :ok})
     res
   end
