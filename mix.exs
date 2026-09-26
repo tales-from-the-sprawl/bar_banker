@@ -69,7 +69,7 @@ defmodule BarBanker.MixProject do
       {:shoehorn, "~> 0.9.3"},
       {:ring_logger, "~> 0.11.6"},
       {:toolshed, "~> 0.5"},
-      {:mix_tasks_upload_hotswap, "~> 0.1.2", only: :dev},
+      {:mix_tasks_upload_hotswap, "~> 0.1.2", only: [:dev, :test]},
 
       # Kiosk deps
       {:muontrap, "~> 1.8"},
@@ -79,7 +79,7 @@ defmodule BarBanker.MixProject do
       # App deps
       {:req, "~> 0.7.4"},
       {:circuits_gpio, "~> 2.3"},
-      {:circuits_spi, "~> 2.1"},
+      {:circuits_i2c, "~> 2.1"},
       {
         :tlv,
         # 2025-11-14

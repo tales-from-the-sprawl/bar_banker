@@ -1,7 +1,7 @@
 defmodule BarBanker.PN532.Server do
   @moduledoc """
-  Owns one PN532's SPI connection on behalf of all callers, so processes
-  share a connection instead of each opening its own raw SPI handle, and
+  Owns one PN532's I2C connection on behalf of all callers, so processes
+  share a connection instead of each opening its own raw I2C handle, and
   reconnects automatically after failures or crashes instead of leaving a
   stale handle that blocks every future `BarBanker.PN532.open/2` on that bus.
 

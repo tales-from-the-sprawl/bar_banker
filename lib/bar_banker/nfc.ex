@@ -7,7 +7,7 @@ defmodule BarBanker.NFC do
   asking until one shows up — run it from a task (e.g. a LiveView
   `start_async/3`) and cancel/kill that task to stop polling.
 
-  The SPI bus is read from `config :bar_banker, BarBanker.NFC, bus: "..."`
+  The I2C bus is read from `config :bar_banker, BarBanker.NFC, bus: "..."`
   and must also be listed in `BarBanker.PN532.Supervisor`'s `:buses`.
   """
 
@@ -15,7 +15,7 @@ defmodule BarBanker.NFC do
 
   require Logger
 
-  @default_bus "spidev0.0"
+  @default_bus "i2c-1"
   @retry_ms 1_000
 
   @doc "Checks for a card once, returning its UID as a lowercase hex string."

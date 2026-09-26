@@ -1,9 +1,9 @@
 defmodule BarBanker.PN532 do
   @moduledoc """
-  Driver for the PN532 NFC/RFID reader IC over SPI (see NXP UM0701-02).
+  Driver for the PN532 NFC/RFID reader IC over I2C (see NXP UM0701-02).
 
-  Port of Adafruit's CircuitPython `adafruit_pn532` driver's SPI backend,
-  built on `BarBanker.PN532.SPI` (bus transport) and `BarBanker.PN532.Frame` (protocol
+  Port of Adafruit's CircuitPython `adafruit_pn532` driver's I2C backend,
+  built on `BarBanker.PN532.I2C` (bus transport) and `BarBanker.PN532.Frame` (protocol
   framing). Only the commands the reference driver implements are covered:
   firmware/SAM setup, ISO14443A passive target detection, and Mifare
   Classic/NTAG2xx block access.
@@ -16,12 +16,12 @@ defmodule BarBanker.PN532 do
 
   alias BarBanker.NDEF
   alias BarBanker.PN532.Frame
-  alias BarBanker.PN532.SPI
+  alias BarBanker.PN532.I2C
 
-  @enforce_keys [:spi]
-  defstruct [:spi, :reset_gpio]
+  @enforce_keys [:i2c]
+  defstruct [:i2c, :reset_gpio]
 
-  @type t :: %__MODULE__{spi: SPI.t(), reset_gpio: Circuits.GPIO.Handle.t() | nil}
+  @type t :: %__MODULE__{i2c: I2C.t(), reset_gpio: Circuits.GPIO.Handle.t() | nil}
 
   @type error ::
           :timeout
@@ -29,7 +29,8 @@ defmodule BarBanker.PN532 do
           | :unexpected_response
           | {:power_down_rejected, status :: byte()}
           | Frame.reason()
-          | {:spi_error, any()}
+          | :busy
+          | :i2c_nak
 
   @command_get_firmware_version 0x02
   @command_sam_configuration 0x14
@@ -65,9 +66,9 @@ defmodule BarBanker.PN532 do
   # retry re-selects the card first, since an RF error drops its crypto state.
   @classic_read_attempts 3
 
-  # PowerDown WakeUpEnable bitmask (UM0701-02 §7.2.11): only SPI (bit 5) is
-  # wired, so only an SPI chip-select edge should wake the chip.
-  @wakeup_enable_spi 0x20
+  # PowerDown WakeUpEnable bitmask (UM0701-02 §7.2.11): only I2C (bit 7) is
+  # wired, so only an I2C address match should wake the chip.
+  @wakeup_enable_i2c 0x80
   # The chip only enters power-down ~1 ms after sending the PowerDown
   # response, and a wake edge before that is lost (the next command then
   # times out), measured on hardware as failing at 1 ms and working at 2 ms.
@@ -95,11 +96,11 @@ defmodule BarBanker.PN532 do
   @type write_error :: {:sector_write_failed, byte()} | :write_failed | :message_too_large
 
   @doc """
-  Opens the SPI bus, resets and wakes the PN532, puts it in normal (SAM)
+  Opens the I2C bus, resets and wakes the PN532, puts it in normal (SAM)
   mode, and confirms it's alive by reading its firmware version.
 
   `opts`:
-  * `:speed_hz` - SPI clock speed, defaults to 500 kHz.
+  * `:address` - the PN532's 7-bit I2C address, defaults to `0x24`.
   * `:reset_gpio` - an already-open `Circuits.GPIO` handle wired to the
     PN532's `RSTPDN` pin. When given, it's pulsed low then high around the
     wakeup, matching the reset sequence in the reference driver. Omit if
@@ -108,12 +109,12 @@ defmodule BarBanker.PN532 do
   @spec open(binary(), keyword()) :: {:ok, t()} | {:error, error()}
   def open(bus_name, opts \\ []) when is_binary(bus_name) do
     reset_gpio = Keyword.get(opts, :reset_gpio)
-    spi_opts = Keyword.take(opts, [:speed_hz])
+    i2c_opts = Keyword.take(opts, [:address])
 
-    with {:ok, spi} <- SPI.open(bus_name, spi_opts),
-         pn532 = %__MODULE__{spi: spi, reset_gpio: reset_gpio},
+    with {:ok, i2c} <- I2C.open(bus_name, i2c_opts),
+         pn532 = %__MODULE__{i2c: i2c, reset_gpio: reset_gpio},
          :ok <- reset(pn532),
-         :ok <- SPI.wakeup(spi),
+         :ok <- I2C.wakeup(i2c),
          :ok <- sam_configuration(pn532),
          :ok <- configure_analog(pn532),
          {:ok, _version} <- firmware_version(pn532) do
@@ -121,9 +122,9 @@ defmodule BarBanker.PN532 do
     end
   end
 
-  @doc "Releases the underlying SPI bus."
+  @doc "Releases the underlying I2C bus."
   @spec close(t()) :: :ok
-  def close(pn532), do: Circuits.SPI.close(pn532.spi)
+  def close(pn532), do: I2C.close(pn532.i2c)
 
   @doc "Reads the chip's IC/firmware/revision/support byte tuple."
   @spec firmware_version(t()) :: {:ok, {byte(), byte(), byte(), byte()}} | {:error, error()}
@@ -167,7 +168,7 @@ defmodule BarBanker.PN532 do
 
   @doc """
   Puts the PN532 into soft power-down (UM0701-02 §7.2.11): the RF field and
-  oscillator stop, and only an SPI chip-select edge wakes it again.
+  oscillator stop, and only an I2C address match wakes it again.
 
   Call `wake_up/1` before issuing any other command. Returns only once the
   chip has actually entered power-down, so a following `wake_up/1` can't
@@ -176,7 +177,7 @@ defmodule BarBanker.PN532 do
   @spec power_down(t()) :: :ok | {:error, error()}
   def power_down(pn532) do
     with {:ok, <<status, _rest::binary>>} <-
-           call_function(pn532, @command_power_down, <<@wakeup_enable_spi, 0x00>>, 1) do
+           call_function(pn532, @command_power_down, <<@wakeup_enable_i2c, 0x00>>, 1) do
       if status == 0 do
         Process.sleep(@power_down_settle_ms)
         :ok
@@ -192,7 +193,7 @@ defmodule BarBanker.PN532 do
   """
   @spec wake_up(t()) :: :ok | {:error, error()}
   def wake_up(pn532) do
-    with :ok <- SPI.wakeup(pn532.spi),
+    with :ok <- I2C.wakeup(pn532.i2c),
          :ok <- sam_configuration(pn532) do
       configure_analog(pn532)
     end
@@ -697,9 +698,9 @@ defmodule BarBanker.PN532 do
     frame = Frame.encode(command, params)
     ack_size = byte_size(Frame.ack_frame())
 
-    with :ok <- SPI.write_data(pn532.spi, frame),
-         :ok <- SPI.wait_ready(pn532.spi, timeout_ms),
-         {:ok, ack} <- SPI.read_data(pn532.spi, ack_size) do
+    with :ok <- I2C.write_data(pn532.i2c, frame),
+         :ok <- I2C.wait_ready(pn532.i2c, timeout_ms),
+         {:ok, ack} <- I2C.read_data(pn532.i2c, ack_size) do
       if Frame.ack?(ack), do: :ok, else: {:error, :bad_ack}
     end
   end
@@ -707,8 +708,8 @@ defmodule BarBanker.PN532 do
   @spec process_response(t(), byte(), non_neg_integer(), non_neg_integer()) ::
           {:ok, binary()} | {:error, error()}
   defp process_response(pn532, command, response_length, timeout_ms) do
-    with :ok <- SPI.wait_ready(pn532.spi, timeout_ms),
-         {:ok, raw} <- SPI.read_data(pn532.spi, response_length + 9),
+    with :ok <- I2C.wait_ready(pn532.i2c, timeout_ms),
+         {:ok, raw} <- I2C.read_data(pn532.i2c, response_length + 9),
          {:ok, payload} <- Frame.decode(raw) do
       if Frame.response_to?(payload, command) do
         {:ok, Frame.response_data(payload)}

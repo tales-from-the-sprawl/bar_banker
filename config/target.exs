@@ -106,7 +106,7 @@ config :mdns_lite,
 
 # import_config "#{Mix.target()}.exs"
 
-# PN532 NFC reader on the Pi's SPI0/CE0. `BarBanker.NFC` polls this bus on
+# PN532 NFC reader on the Pi's I2C1 (GPIO2/SDA, GPIO3/SCL), address 0x24. `BarBanker.NFC` polls this bus on
 # request; the supervisor keeps the connection alive and reconnects.
-config :bar_banker, BarBanker.PN532.Supervisor, buses: ["spidev0.0"]
-config :bar_banker, BarBanker.NFC, bus: "spidev0.0"
+config :bar_banker, BarBanker.PN532.Supervisor, buses: ["i2c-1"]
+config :bar_banker, BarBanker.NFC, bus: "i2c-1"

@@ -34,7 +34,8 @@ defmodule BarBankerWeb.CustomerLive do
         </div>
       <% end %>
 
-      <button class="focus:bg-green-500"
+      <button
+        class="focus:bg-green-500"
         phx-click={JS.remove_class("bg-red-500")}
         phx-window-keydown={JS.add_class("bg-red-500")}
       >become red</button>

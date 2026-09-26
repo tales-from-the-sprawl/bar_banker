@@ -1,8 +1,8 @@
 defmodule BarBanker.PN532.Supervisor do
   @moduledoc """
-  Starts one supervised `BarBanker.PN532.Server` per configured SPI bus, so
+  Starts one supervised `BarBanker.PN532.Server` per configured I2C bus, so
   multiple processes can share a PN532 connection instead of each opening
-  its own raw SPI handle, and it reconnects automatically after failures
+  its own raw I2C handle, and it reconnects automatically after failures
   or crashes.
 
   Buses are read from `config :bar_banker, #{inspect(__MODULE__)}, buses: [...]`,
